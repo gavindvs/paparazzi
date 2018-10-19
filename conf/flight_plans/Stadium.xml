@@ -1,0 +1,64 @@
+<!DOCTYPE flight_plan SYSTEM "flight_plan.dtd">
+
+<flight_plan alt="150" ground_alt="1" lat0="1.434500" lon0="103.780771" max_dist_from_home="500" name="Stadium" qfu="270" security_height="25">
+  <waypoints>
+    <waypoint alt="1.0" name="HOME" x="1.1" y="3.7"/>
+    <waypoint alt="150.0" name="STDBY" x="-21.7" y="-19.1"/>
+    <waypoint alt="150.0" name="wp2" x="-9.0" y="29.5"/>
+    <waypoint alt="150.0" name="wp1" x="-40.8" y="-3.5"/>
+    <waypoint alt="50.0" name="RWP" x="-216.8" y="-206.8"/>
+    <waypoint name="_BASELEG" x="168.8" y="-13.8"/>
+    <waypoint name="Stay" x="168.8" y="-13.8"/>
+    <waypoint name="MOB" x="168.8" y="-13.8"/>
+    <waypoint name="P1" x="-94.4" y="-50.0"/>
+  </waypoints>
+  <blocks>
+    <block group="home" key="1" name="Wait GPS">
+      <set value="1" var="autopilot.kill_throttle"/>
+      <while cond="!GpsFixValid()"/>
+    </block>
+    <block group="home" key="2" name="Geo init">
+      <while cond="LessThan(NavBlockTime(), 10)"/>
+      <call_once fun="NavSetGroundReferenceHere()"/>
+    </block>
+    <block group="home" key="3" name="Takeoff" strip_button="Takeoff" strip_icon="takeoff.png">
+      <exception cond="GetPosAlt() > GetAltRef()+25" deroute="Standby"/>
+      <set value="0" var="autopilot.kill_throttle"/>
+      <set value="0" var="autopilot.flight_time"/>
+      <go from="HOME" pitch="15" throttle="1.0" vmode="throttle" wp="STDBY"/>
+    </block>
+    <block group="home" key="4" name="Standby" strip_button="Standby" strip_icon="home.png">
+      <circle radius="nav_radius" wp="STDBY"/>
+    </block>
+    <block group="base_pattern" key="q" name="Stay" strip_button="Stay" strip_icon="mob.png">
+      <call_once fun="NavSetWaypointHere(WP_Stay)"/>
+      <stay wp="Stay"/>
+    </block>
+    <block group="base_pattern" key="e" name="MOB" strip_button="Circle around here" strip_icon="mob.png">
+      <call_once fun="NavSetWaypointHere(WP_MOB)"/>
+      <set value="DEFAULT_CIRCLE_RADIUS" var="nav_radius"/>
+      <circle radius="nav_radius" wp="MOB"/>
+    </block>
+    <block group="extra_pattern" key="F1" name="Figure 8 around wp 1" strip_button="Figure 8 (wp 1-2)" strip_icon="eight.png">
+      <eight center="wp1" radius="nav_radius" turn_around="wp2"/>
+    </block>
+    <block group="extra_pattern" key="F2" name="Survey wp 1-2" strip_button="Survey (wp 1-2)" strip_icon="survey.png">
+      <go wp="P1" approaching_time="0"/>
+      <go approaching_time="0" from="P1" hmode="route" alt="150" pitch="10"throttle="0.6" vmode="throttle" wp="wp1"/>
+      <survey_rectangle grid="-70" wp1="wp1" wp2="wp2"/>
+    </block>
+    <block group="extra_pattern" key="F3" name="Oval 1-2" strip_button="Oval wp 1-2" strip_icon="oval.png">
+      <oval p1="wp1" p2="wp2" radius="nav_radius"/>
+    </block>
+    <block group="base_pattern" key="w" name="Land">
+      <call_once fun="nav_compute_baseleg(WP_RWP, WP_HOME, WP__BASELEG, nav_radius)"/>
+      <circle radius="nav_radius" until="NavCircleCount() > 0.5" wp="_BASELEG"/>
+      <circle radius="nav_radius" until="And(NavQdrCloseTo(DegOfRad(baseleg_out_qdr)-(nav_radius/fabs(nav_radius))*10), 10 > fabs(GetPosAlt() - WaypointAlt(WP__BASELEG)))" wp="_BASELEG"/>
+      <deroute block="flare"/>
+    </block>
+    <block group="base_pattern" name="flare">
+      <go approaching_time="0" from="STDBY" hmode="route" throttle="0.0" vmode="throttle" wp="HOME"/>
+      <attitude roll="0.0" throttle="0.0" until="FALSE" vmode="throttle"/>
+    </block>
+  </blocks>
+</flight_plan>
